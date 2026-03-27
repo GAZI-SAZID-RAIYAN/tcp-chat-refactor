@@ -1,5 +1,6 @@
 // client_gui.c
 #define _WIN32_WINNT 0x0601
+
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -8,112 +9,142 @@
 
 #pragma comment(lib, "Ws2_32.lib")
 
-#define DEFAULT_PORT "27015"
-#define DEFAULT_BUFLEN 512
+#define BUFFER_SIZE 512
 
-SOCKET ConnectSocket = INVALID_SOCKET;
-HWND hInput, hOutput;
+SOCKET connectSocket = INVALID_SOCKET;
+HWND hInputBox, hOutputBox;
 
-void AppendText(HWND hEdit, const char* text) {
-    int len = GetWindowTextLength(hEdit);
-    SendMessage(hEdit, EM_SETSEL, (WPARAM)len, (LPARAM)len);
+/* Append text to output edit control */
+void appendText(HWND hEdit, const char* text) {
+    int length = GetWindowTextLength(hEdit);
+    SendMessage(hEdit, EM_SETSEL, (WPARAM)length, (LPARAM)length);
     SendMessage(hEdit, EM_REPLACESEL, 0, (LPARAM)text);
 }
 
-unsigned __stdcall ReceiveThread(void* arg) {
-    char recvbuf[DEFAULT_BUFLEN];
-    int iResult;
+/* Thread to receive messages from server */
+unsigned __stdcall receiveThread(void* arg) {
+    char recvBuffer[BUFFER_SIZE];
+    int bytesReceived;
 
     while (1) {
-        ZeroMemory(recvbuf, DEFAULT_BUFLEN);
-        iResult = recv(ConnectSocket, recvbuf, DEFAULT_BUFLEN, 0);
-        if (iResult > 0) {
-            strcat(recvbuf, "\r\n");
-            AppendText(hOutput, recvbuf);
+        ZeroMemory(recvBuffer, BUFFER_SIZE);
+
+        bytesReceived = recv(connectSocket, recvBuffer, BUFFER_SIZE, 0);
+
+        if (bytesReceived > 0) {
+            strcat(recvBuffer, "\r\n");
+            appendText(hOutputBox, recvBuffer);
         } else {
-            AppendText(hOutput, "Disconnected from server.\r\n");
+            appendText(hOutputBox, "Disconnected from server.\r\n");
             break;
         }
     }
+
     return 0;
 }
 
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-    char buffer[DEFAULT_BUFLEN];
+/* Window procedure */
+LRESULT CALLBACK windowProcedure(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    char buffer[BUFFER_SIZE];
 
-    switch (uMsg) {
-        case WM_COMMAND:
-            if (LOWORD(wParam) == 1) { // Send button
-                GetWindowTextA(hInput, buffer, DEFAULT_BUFLEN);
-                if (strlen(buffer) > 0) {
-                    send(ConnectSocket, buffer, (int)strlen(buffer), 0);
+    switch (msg) {
+    case WM_COMMAND:
+        if (LOWORD(wParam) == 1) {  // Send button
+            GetWindowTextA(hInputBox, buffer, BUFFER_SIZE);
 
-                    // নিজের UI তে "Me:" হিসেবে দেখান
-                    char selfMsg[DEFAULT_BUFLEN + 10];
-                    sprintf(selfMsg, "Me: %s\r\n", buffer);
-                    AppendText(hOutput, selfMsg);
+            if (strlen(buffer) > 0) {
+                send(connectSocket, buffer, (int)strlen(buffer), 0);
 
-                    SetWindowTextA(hInput, "");
-                }
+                char selfMessage[BUFFER_SIZE + 10];
+                sprintf(selfMessage, "Me: %s\r\n", buffer);
+                appendText(hOutputBox, selfMessage);
+
+                SetWindowTextA(hInputBox, "");
             }
-            break;
+        }
+        break;
 
-        case WM_DESTROY:
-            closesocket(ConnectSocket);
-            WSACleanup();
-            PostQuitMessage(0);
-            return 0;
+    case WM_DESTROY:
+        closesocket(connectSocket);
+        WSACleanup();
+        PostQuitMessage(0);
+        return 0;
     }
-    return DefWindowProc(hwnd, uMsg, wParam, lParam);
+
+    return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR lpCmd, int nCmdShow) {
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+                   LPSTR lpCmdLine, int nCmdShow) {
+
     WSADATA wsaData;
-    struct sockaddr_in serverAddr;
+    struct sockaddr_in serverAddress;
 
-    WSAStartup(MAKEWORD(2,2), &wsaData);
+    /* Initialize WinSock */
+    WSAStartup(MAKEWORD(2, 2), &wsaData);
 
-    ConnectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (ConnectSocket == INVALID_SOCKET) {
+    connectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (connectSocket == INVALID_SOCKET) {
         MessageBox(NULL, "Socket creation failed", "Error", MB_OK);
         return 1;
     }
 
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(27015);
-    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    // ipconfig------------192.168.0.199
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_port = htons(27015);
+    serverAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-    if (connect(ConnectSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
+    /* Connect to server */
+    if (connect(connectSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) == SOCKET_ERROR) {
         MessageBox(NULL, "Could not connect to server", "Error", MB_OK);
         return 1;
     }
 
-    _beginthreadex(NULL, 0, ReceiveThread, NULL, 0, NULL);
+    _beginthreadex(NULL, 0, receiveThread, NULL, 0, NULL);
 
+    /* Register window class */
     const char CLASS_NAME[] = "ChatClientWindow";
-    WNDCLASS wc = { };
-    wc.lpfnWndProc = WindowProc;
+    WNDCLASS wc = { 0 };
+    wc.lpfnWndProc = windowProcedure;
     wc.hInstance = hInstance;
     wc.lpszClassName = CLASS_NAME;
+
     RegisterClass(&wc);
 
-    HWND hwnd = CreateWindowEx(0, CLASS_NAME, "Client UI (C)", WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT, 400, 300, NULL, NULL, hInstance, NULL);
+    /* Create main window */
+    HWND hwnd = CreateWindowEx(
+        0,
+        CLASS_NAME,
+        "TCP Chat Client",
+        WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT, CW_USEDEFAULT,
+        400, 300,
+        NULL, NULL, hInstance, NULL);
 
-    hInput = CreateWindow("EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL,
-        20, 20, 340, 25, hwnd, NULL, hInstance, NULL);
+    /* Create UI controls */
+    hInputBox = CreateWindow(
+        "EDIT", "",
+        WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL,
+        20, 20, 340, 25,
+        hwnd, NULL, hInstance, NULL);
 
-    hOutput = CreateWindow("EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
-        20, 60, 340, 150, hwnd, NULL, hInstance, NULL);
+    hOutputBox = CreateWindow(
+        "EDIT", "",
+        WS_CHILD | WS_VISIBLE | WS_BORDER |
+        ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
+        20, 60, 340, 150,
+        hwnd, NULL, hInstance, NULL);
 
-    CreateWindow("BUTTON", "Send", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-        150, 220, 80, 30, hwnd, (HMENU)1, hInstance, NULL);
+    CreateWindow(
+        "BUTTON", "Send",
+        WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+        150, 220, 80, 30,
+        hwnd, (HMENU)1, hInstance, NULL);
 
     ShowWindow(hwnd, nCmdShow);
     UpdateWindow(hwnd);
 
-    MSG msg = { };
+    /* Message loop */
+    MSG msg = { 0 };
     while (GetMessage(&msg, NULL, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
@@ -121,6 +152,3 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR lpCmd, int nCmdSh
 
     return 0;
 }
-
-// gcc client_gui.c -o client_gui.exe -lws2_32 -mwindows
-//  ./client_gui.exe

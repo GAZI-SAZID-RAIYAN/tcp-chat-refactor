@@ -1,5 +1,6 @@
 // server.c
 #define _WIN32_WINNT 0x0601
+
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <process.h>
@@ -9,41 +10,44 @@
 #pragma comment(lib, "Ws2_32.lib")
 
 #define DEFAULT_PORT "27015"
-#define DEFAULT_BUFLEN 512
+#define BUFFER_SIZE 512
 #define MAX_CLIENTS 10
 
 typedef struct {
     SOCKET socket;
     int id;
-} CLIENT;
+} Client;
 
-CLIENT* clients[MAX_CLIENTS];
+Client* clientList[MAX_CLIENTS];
 int clientCount = 0;
 
-void broadcast(const char* message, int senderId) {
+/* Broadcast message to all connected clients */
+void broadcastMessage(const char* message) {
     for (int i = 0; i < clientCount; ++i) {
-       
-        send(clients[i]->socket, message, (int)strlen(message), 0);
+        send(clientList[i]->socket, message, (int)strlen(message), 0);
     }
 }
 
-unsigned int __stdcall ClientThread(void* arg) {
-    CLIENT* client = (CLIENT*)arg;
-    char recvbuf[DEFAULT_BUFLEN];
-    int iResult;
+/* Thread function for handling each client */
+unsigned int __stdcall clientHandler(void* arg) {
+    Client* client = (Client*)arg;
+    char recvBuffer[BUFFER_SIZE];
+    int bytesReceived;
 
     printf("Client %d connected.\n", client->id);
 
     while (1) {
-        ZeroMemory(recvbuf, DEFAULT_BUFLEN);
-        iResult = recv(client->socket, recvbuf, DEFAULT_BUFLEN, 0);
-        if (iResult > 0) {
-            printf("Client %d: %s\n", client->id, recvbuf);
+        ZeroMemory(recvBuffer, BUFFER_SIZE);
 
-            char msgWithId[DEFAULT_BUFLEN + 50];
-            sprintf(msgWithId, "Client %d: %s", client->id, recvbuf);
+        bytesReceived = recv(client->socket, recvBuffer, BUFFER_SIZE, 0);
 
-            broadcast(msgWithId, client->id);
+        if (bytesReceived > 0) {
+            printf("Client %d: %s\n", client->id, recvBuffer);
+
+            char formattedMsg[BUFFER_SIZE + 50];
+            sprintf(formattedMsg, "Client %d: %s", client->id, recvBuffer);
+
+            broadcastMessage(formattedMsg);
         } else {
             printf("Client %d disconnected.\n", client->id);
             break;
@@ -52,11 +56,12 @@ unsigned int __stdcall ClientThread(void* arg) {
 
     closesocket(client->socket);
 
-    // Remove client
+    /* Remove client from list */
     for (int i = 0; i < clientCount; i++) {
-        if (clients[i]->id == client->id) {
+        if (clientList[i]->id == client->id) {
             for (int j = i; j < clientCount - 1; j++)
-                clients[j] = clients[j + 1];
+                clientList[j] = clientList[j + 1];
+
             clientCount--;
             break;
         }
@@ -66,12 +71,19 @@ unsigned int __stdcall ClientThread(void* arg) {
     return 0;
 }
 
-int main() {
+int main(void) {
     WSADATA wsaData;
-    SOCKET ListenSocket = INVALID_SOCKET;
-    struct addrinfo *result = NULL, hints;
+    SOCKET listenSocket = INVALID_SOCKET;
+    struct addrinfo* result = NULL;
+    struct addrinfo hints;
 
-    WSAStartup(MAKEWORD(2,2), &wsaData);
+    printf("Starting TCP Chat Server...\n");
+
+    /* Initialize WinSock */
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        printf("WSAStartup failed\n");
+        return 1;
+    }
 
     ZeroMemory(&hints, sizeof(hints));
     hints.ai_family = AF_INET;
@@ -79,31 +91,57 @@ int main() {
     hints.ai_protocol = IPPROTO_TCP;
     hints.ai_flags = AI_PASSIVE;
 
-    getaddrinfo(NULL, DEFAULT_PORT, &hints, &result);
-    ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-    bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
-    listen(ListenSocket, SOMAXCONN);
+    /* Resolve server address and port */
+    if (getaddrinfo(NULL, DEFAULT_PORT, &hints, &result) != 0) {
+        printf("getaddrinfo failed\n");
+        WSACleanup();
+        return 1;
+    }
 
-    printf("Server waiting for clients...\n");
+    /* Create listening socket */
+    listenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    if (listenSocket == INVALID_SOCKET) {
+        printf("Socket creation failed\n");
+        WSACleanup();
+        return 1;
+    }
 
+    /* Bind socket */
+    if (bind(listenSocket, result->ai_addr, (int)result->ai_addrlen) == SOCKET_ERROR) {
+        printf("Bind failed\n");
+        closesocket(listenSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    freeaddrinfo(result);
+
+    /* Start listening */
+    if (listen(listenSocket, SOMAXCONN) == SOCKET_ERROR) {
+        printf("Listen failed\n");
+        closesocket(listenSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    printf("Server is waiting for clients on port %s...\n", DEFAULT_PORT);
+
+    /* Accept clients */
     while (1) {
-        SOCKET ClientSocket = accept(ListenSocket, NULL, NULL);
-        if (ClientSocket != INVALID_SOCKET) {
-            CLIENT* client = (CLIENT*)malloc(sizeof(CLIENT));
-            client->socket = ClientSocket;
+        SOCKET clientSocket = accept(listenSocket, NULL, NULL);
+
+        if (clientSocket != INVALID_SOCKET && clientCount < MAX_CLIENTS) {
+            Client* client = (Client*)malloc(sizeof(Client));
+            client->socket = clientSocket;
             client->id = clientCount + 1;
-            clients[clientCount++] = client;
-            _beginthreadex(NULL, 0, ClientThread, client, 0, NULL);
+
+            clientList[clientCount++] = client;
+
+            _beginthreadex(NULL, 0, clientHandler, client, 0, NULL);
         }
     }
 
-    closesocket(ListenSocket);
+    closesocket(listenSocket);
     WSACleanup();
     return 0;
 }
-
-// ./server.exe
- 
-// gcc server.c -o server.exe -lws2_32
-
-
