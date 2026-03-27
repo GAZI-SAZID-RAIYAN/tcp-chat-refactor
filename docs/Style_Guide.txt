@@ -1,0 +1,51 @@
+TCP Chat Project – Coding Style Guide
+
+1. Naming Conventions
+---------------------
+- Variables use camelCase:
+  Example: clientSocket, recvBuffer
+
+- Constants use UPPER_CASE:
+  Example: BUFFER_SIZE, MAX_CLIENTS
+
+- Functions use descriptive names:
+  Example: broadcastMessage(), clientHandler()
+
+2. Indentation and Formatting
+-----------------------------
+- Use 4 spaces for indentation.
+- Opening brace stays on the same line:
+  Example:
+  if (condition) {
+      statement;
+  }
+
+3. File Organization
+--------------------
+- Each source file contains one main module.
+- server.c handles networking and client management.
+- client_gui.c handles GUI and client communication.
+
+4. Comments
+-----------
+- Every function must include a short description above it.
+- Complex logic must be explained with inline comments.
+
+Example:
+/* Broadcast message to all clients */
+void broadcastMessage(const char* message)
+
+5. Error Handling
+-----------------
+- All network operations must be checked for errors.
+- If a function fails, print an error message and exit safely.
+
+6. Buffer Safety
+----------------
+- Always clear buffers using ZeroMemory before use.
+- Avoid buffer overflow by respecting BUFFER_SIZE.
+
+7. Threading Rules
+------------------
+- Each client connection is handled in a separate thread.
+- Shared data structures must be accessed carefully.

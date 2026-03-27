@@ -1,0 +1,37 @@
+AI Usage Documentation
+
+This file records the prompts used to assist in developing and formatting the project code.
+
+Prompt 1:
+----------
+"Refactor my C TCP chat server and client code to follow consistent coding style, naming conventions, and indentation."
+
+Changes Applied:
+- Renamed variables to camelCase
+- Reformatted indentation to 4 spaces
+- Added function comments
+- Improved readability
+
+Prompt 2:
+----------
+"Generate a coding style guide suitable for a C socket-based chat application."
+
+Result:
+- STYLE_GUIDE.txt was created based on the generated rules.
+
+Prompt 3:
+----------
+"Improve error handling and add comments to my WinSock chat server and client GUI code."
+
+Changes Applied:
+- Added error checks after socket, bind, listen, and connect
+- Added explanatory comments to major functions
+
+Prompt 4:
+----------
+"Format my C code to be suitable for submission in a software engineering assignment."
+
+Changes Applied:
+- Cleaned formatting
+- Organized code structure
+- Removed unused variables
