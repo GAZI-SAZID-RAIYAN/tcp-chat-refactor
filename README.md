@@ -1,8 +1,10 @@
 TCP Chat Application in C
 Software Engineering Assignment 1
 
-Author: Your Name
-Student ID: XXXXX
+Name: Gazi Sazid Raiyan
+Student ID: 240211
+Name: Md Hasan
+Student ID: 240227
 
 Project Description
 -------------------
