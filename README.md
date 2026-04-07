@@ -1,62 +1,50 @@
-TCP Chat Application in C
-Advanced Programming Laboratory
+----------------------------------------
+Assignment 2: Refactoring into Java using SOLID
+----------------------------------------
 
-Name: Gazi Sazid Raiyan
-Student ID: 240211
-Name: Md. Hasan
-Student ID: 240227
+In this assignment, the original C TCP chat application was refactored into Java
+using object-oriented design and SOLID principles.
 
-Project Description
--------------------
-This project implements a TCP-based multi-client chat system using the C programming language and WinSock API.
+The purpose of this task was to transform a procedural network program into a
+modular, extensible and maintainable object-oriented architecture.
 
-The system consists of:
-1. A server application that accepts multiple clients and broadcasts messages.
-2. A graphical client application built using the Windows API.
+The Java implementation is located in:
+java-refactor/src/chat/
 
-Project Features
-----------------
-- Multi-client communication
-- Message broadcasting
-- GUI client with message input and output
-- Threaded client handling on the server
+----------------------------------------
+SOLID Principles Applied
+----------------------------------------
 
-File Structure
---------------
-c-original/
-    server.c
-    client_gui.c
+SRP - Single Responsibility Principle
+Each class has only one responsibility.
+Example:
+Message class only handles message data.
 
-docs/
-    STYLE_GUIDE.txt
-    AI_PROMPTS.txt
+OCP - Open Closed Principle
+The server is designed so that new network implementations can be added
+without modifying existing server logic.
 
-Compilation
------------
-Server:
-gcc server.c -o server.exe -lws2_32
+LSP - Liskov Substitution Principle
+The TcpNetworkAdapter can be replaced by another network adapter without
+breaking the system.
 
-Client:
-gcc client_gui.c -o client_gui.exe -lws2_32 -mwindows
+ISP - Interface Segregation Principle
+Network operations were separated into small interfaces:
+Sender and Receiver.
 
-How to Run
-----------
-1. Start the server:
-   server.exe
+DIP - Dependency Inversion Principle
+High-level modules like ChatServer and ClientHandler depend on
+interfaces instead of concrete network classes.
 
-2. Run one or more clients:
-   client_gui.exe
+----------------------------------------
+How to Compile and Run the Java Version
+----------------------------------------
 
-3. Type a message in the client and press Send.
+Compile:
+javac chat/*.java
 
-Design Overview
----------------
-The server uses threads to handle each connected client.
-Messages received from one client are broadcast to all connected clients.
+Run server:
+java chat.ChatApplication server
 
-AI Assistance
--------------
-AI tools were used to:
-- Improve code formatting
-- Generate a coding style guide
-- Document the development process
+Run client:
+java chat.ChatApplication
