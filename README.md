@@ -18,6 +18,9 @@ Using interfaces to decouple high-level and low-level modules
 Ensuring the system is easy to extend (e.g., supporting new protocols or features)
 Maintaining the original functionality while improving structure and readability
 
+<img width="764" height="843" alt="image" src="https://github.com/user-attachments/assets/d2739534-77d4-40ce-820d-d697f247fb3e" />
+
+
 
 **SOLID Principles Applied
 SRP – Single Responsibility Principle**
