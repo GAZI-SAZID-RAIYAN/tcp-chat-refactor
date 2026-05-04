@@ -1,4 +1,8 @@
 # 💬 MVC Chat Application
+👤 Gazi Sazid Raiyan | 🆔 240211
+
+👤 Md Hasan | 🆔 240227
+
 
 A real-time TCP-based chat application built in **Java**, strictly following the **MVC (Model-View-Controller)** architectural pattern and **SOLID** design principles.
 
